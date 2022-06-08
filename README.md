@@ -1,17 +1,6 @@
-![netcdf-java icon](https://www.unidata.ucar.edu/images/logos/thredds_netcdf-150x150.png)
-<br>
-<br>
+# NetCDF-Java 7.x
 
-# netCDF-Java
-
-Welcome to the development branch of the netCDF-Java library (currently version _7.x_)!
-
-> Looking for the `6.x` line of development?
-See branch [6.x](https://github.com/unidata/netcdf-java/tree/6.x).
-Looking for the `5.x` line of development?
-See branch [maint-5.x](https://github.com/unidata/netcdf-java/tree/maint-5.x).
-Version `4.6` is no longer supported outside of the context of the THREDDS Data Server (TDS).
-If you are looking for that codebase, it can be found at <https://github.com/Unidata/thredds/tree/4.6.x>.
+Welcome to the `7x` line of development of the netCDF-Java library!
 
 The netCDF Java library provides an interface for scientific data access.
 It can be used to read scientific data from a variety of file formats including netCDF, HDF, GRIB, and BUFR.
@@ -20,7 +9,7 @@ It can write netCDF-4 files by using JNA to call the netCDF-C library.
 The library implements [Unidata's Common Data Model (CDM)](https://docs.unidata.ucar.edu/netcdf-java/current/userguide/common_data_model_overview.html) to provide data geolocation capabilities.
 
 Documentation can be found at <https://docs.unidata.ucar.edu/netcdf-java/>.
-The [User's Guide](https://docs.unidata.ucar.edu/netcdf-java/current/userguide/index.html) contains information on how to use the library in your project, a tutorial, and useful upgrade tips.
+The [User's Guide](https://docs.unidata.ucar.edu/netcdf-java/7.0serguide/index.html) contains information on how to use the library in your project, a tutorial, and useful upgrade tips.
 
 ## Requirements
 
@@ -46,6 +35,7 @@ Please familiarize yourself with these Codes of Conduct, especially the [Contrib
 In the coming weeks, we'll be opening the GitHub Discussions area on this repository as a place for discussion of all things netCDF-Java.
 Unidata will continue to host community mailing list, netcdf-java@unidata.ucar.edu, as a secondary outlet for release announcements, and as a place for those who do not wish to use GitHub.
 
+
 We appreciate feedback from users of this package.
 The GitHub Discussions area (once active) will be a great place to post comments and suggestions, and discuss the future direction of the library.
 For bug reports, please open an issue on this repository.
@@ -56,9 +46,12 @@ For potential security issues, please contact security@unidata.ucar.edu directly
 
 Are you looking to contribute to the netCDF-Java efforts?
 That's great!
-Please see our [contributors guide](https://github.com/Unidata/netcdf-java/blob/develop/.github/CONTRIBUTING.md) for more information!
+Please see our [contributors guide](https://github.com/Unidata/netcdf-java-ng/blob/main/.github/CONTRIBUTING.md) for more information!
 
-## Older versions
+## Older Versions
+
+* [`6.x`](https://github.com/unidata/netcdf-java-ng/tree/6.x)
+* [`5.x`](https://github.com/Unidata/netcdf-java)
 
 Prior to `v5.0.0`, the netCDF-Java library and the THREDDS Data Server (TDS) were built and released together.
 Starting with version 5, the two packages were decoupled, allowing new features and bug fixes to be implemented in each package separately, and released independently.
