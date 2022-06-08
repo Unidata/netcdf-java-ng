@@ -1,19 +1,6 @@
-![netcdf-java icon](https://www.unidata.ucar.edu/images/logos/thredds_netcdf-150x150.png)
-<br>
-<br>
+# Next Generation netCDF-Java (`8.x`)
 
-# netCDF-Java
-
-Welcome to the development branch of the netCDF-Java library (currently version _8.x_)!
-
-> Looking for the `7.x` line of development?
-See branch [7.x](https://github.com/unidata/netcdf-java/tree/7.x).
-Looking for the `6.x` line of development?
-See branch [6.x](https://github.com/unidata/netcdf-java/tree/6.x)
-Looking for the `5.x` line of development?
-See branch [maint-5.x](https://github.com/unidata/netcdf-java/tree/maint-5.x).
-Version `4.6` is no longer supported outside of the context of the THREDDS Data Server (TDS).
-If you are looking for that codebase, it can be found at <https://github.com/Unidata/thredds/tree/4.6.x>.
+Welcome to the development branch of the netCDF-Java `8.x` library!
 
 ## Quick Start
 
@@ -67,9 +54,13 @@ For potential security issues, please contact security@unidata.ucar.edu directly
 
 Are you looking to contribute to the netCDF-Java efforts?
 That's great!
-Please see our [contributors guide](https://github.com/Unidata/netcdf-java/blob/develop/.github/CONTRIBUTING.md) for more information!
+Please see our [contributors guide](https://github.com/Unidata/netcdf-java-ng/blob/main/.github/CONTRIBUTING.md) for more information!
 
-## Older versions
+## Older Versions
+
+* [`7.x`](https://github.com/unidata/netcdf-java-ng/tree/7.x)
+* [`6.x`](https://github.com/unidata/netcdf-java-ng/tree/6.x)
+* [`5.x`](https://github.com/Unidata/netcdf-java)
 
 Prior to `v5.0.0`, the netCDF-Java library and the THREDDS Data Server (TDS) were built and released together.
 Starting with version 5, the two packages were decoupled, allowing new features and bug fixes to be implemented in each package separately, and released independently.
