@@ -1,0 +1,405 @@
+plugins {
+  id 'base'
+  alias(libs.plugins.jekyllPlugin)
+  alias(libs.plugins.nexusPlugin).apply(false)
+}
+
+// disable tasks added by the jekyll plugin...we need custom tasks, one for each docset
+buildJekyllSite.enabled(false)
+serveJekyllSite.enabled(false)
+
+apply from: "${projectDir}/gradle/properties.gradle"
+apply from: "${projectDir}/gradle/helpers.gradle"
+apply from: "${projectDir}/gradle/tests.gradle"
+apply from: "${projectDir}/gradle/spotless.gradle"
+
+import edu.ucar.build.publishing.tasks.PublishToRawRepoTask
+import edu.ucar.build.publishing.tasks.DeleteFromNexusTask
+import edu.ucar.unidata.site.jekyll.tasks.ServeTask
+
+// It makes sense to publish major.minor versions of the docs, as
+// any patch bumps should be backwards compatible bug fixes only
+// To do this, we need to make a special "doc version" string.
+// First, drop any dangling snapshot, alpha, beta tags
+def cleanVersion = "$version".split('-')[0]
+
+// tokenize version on the '.' character, which gives us a list of [major, minor, patch]
+def docVersionParts = cleanVersion.tokenize('.')
+
+// we should always have a major, minor, and patch value in our version
+assert docVersionParts.size == 3
+
+// keep major and minor parts of the version and use those to version the docs
+def docVersion = docVersionParts[0] + '.' + docVersionParts[1]
+
+def javaProjects = rootProject.subprojects.findAll {
+  subproject -> subproject.plugins.hasPlugin('java-library')
+}
+
+////////////////////////
+// Jekyll Sites Build //
+////////////////////////
+
+final def docSetsInfo = [
+  developer: [
+    rawRepoName: 'docs-netcdf-java',
+    version: "$docVersion",
+    isDocSet: true,
+    hasDocVersionFile: false
+  ],
+  ncml: [
+    rawRepoName: 'docs-ncml',
+    version: '2.2',
+    isDocSet: false,
+    hasDocVersionFile: true
+  ],
+  userguide: [
+    rawRepoName: 'docs-netcdf-java',
+    version: "$docVersion",
+    isDocSet: true,
+    hasDocVersionFile: true
+  ]
+]
+
+final def buildAllJekyllSitesTaskName = 'buildAllJekyllSites'
+
+// copy shared topnav.yml file
+def filesToCopy = copySpec {
+  from "${projectDir}/shared"
+  include '**/*.golden'
+  rename '(.*).golden', '$1'
+}
+
+def copySharedJekyllFilesTask = tasks.register('copySharedJekyllFiles', Copy) {
+  group = 'documentation-set'
+  into "${projectDir}"
+  docSetsInfo.each {
+    into("${it.key}") {
+      with filesToCopy
+    }
+  }
+}
+
+// clean up shared files files that were copied during the jekyll site build tasks
+clean {
+  def tree = fileTree("${projectDir}/shared")
+  tree.include('**/*.golden')
+  tree.forEach {
+    def relFileToDelete = projectDir.toPath().resolve('shared').relativize(it.toPath())
+    docSetsInfo.each { docSet ->
+      def fileToDelete = file("${projectDir}/${docSet.key}").toPath().resolve(relFileToDelete)
+      delete "${fileToDelete.toString().replace('.golden$','')}"
+    }
+  }
+}
+
+// aggregator task (aggregate individual doc set builds)
+tasks.register(buildAllJekyllSitesTaskName) {
+  group = 'Documentation'
+  description = 'Build all jekyll sites.'
+}
+
+// setup build and publish tasks associated with each individual documentation set
+docSetsInfo.each { docSet, docSetInfo ->
+  def partialTaskName = makeUpperCamelCase(docSet)
+  def buildTask = tasks.register("build${partialTaskName}", edu.ucar.unidata.site.jekyll.tasks.BuildTask) {
+    group 'documentation-set'
+    script = 'jekyll'
+    description "Build ${docSet} jekyll site."
+    sourceDirectory.set(layout.projectDirectory.dir("${docSet}/src/site"))
+    destinationDirectory.set(layout.buildDirectory.dir("site/${docSet}/"))
+    dependsOn tasks.named('unpackGemJar'), copySharedJekyllFilesTask
+  }
+
+  tasks.register("serve${partialTaskName}", ServeTask) {
+    group 'documentation-set'
+    script = 'jekyll'
+    description "Serve $docSet jekyll site."
+    sourceDirectory.set(layout.projectDirectory.dir("${docSet}/src/site"))
+    destinationDirectory.set(layout.buildDirectory.dir("site/${docSet}/"))
+    dependsOn tasks.named('unpackGemJar')
+  }
+
+  // register tasks with the aggregator build task
+  tasks.named(buildAllJekyllSitesTaskName).configure({dependsOn buildTask})
+}
+
+///////////////////
+// Javadoc Build //
+///////////////////
+
+// This is the public interface. Future changes to the API will attempt to remain backwards compatible with it.
+def publicApiDef = [
+        'thredds/client/catalog/*.java',
+        'thredds/client/catalog/builder/*.java',
+        'ucar/array/*.java',
+        'ucar/nc2/*.java',
+        'ucar/nc2/calendar/*.java',
+        'ucar/nc2/constants/*.java',
+        'ucar/nc2/dataset/*.java',
+        'ucar/nc2/dataset/spi/*.java',
+        'ucar/nc2/geoloc/vertical/*.java',
+        'ucar/nc2/grid/*.java',
+        'ucar/nc2/iosp/*.java',
+        'ucar/nc2/time/*.java',
+        'ucar/nc2/units/*.java',
+        'ucar/nc2/util/*.java',
+        'ucar/nc2/write/*.java',
+        'ucar/unidata/geoloc/*.java',
+        'ucar/unidata/io/*.java',
+        'ucar/unidata/io/spi/*.java'
+]
+
+gradle.projectsEvaluated {  // Several statements below rely upon all subprojects having been evaluated.
+  task buildJavadocPublicApi(type: Javadoc) {
+    group = 'documentation-set'
+    description = 'Generate Javadoc for the Public API.'
+    title = "NetCDF-Java Public API v${version}"
+    destinationDir = file("${buildDir}/javadoc/")
+
+    options.showFromPublic()
+    options.noDeprecated()
+
+    SourceSet cdmCoreSourceSet = rootProject.project(':cdm-core').sourceSets.main
+    source cdmCoreSourceSet.allJava
+
+    classpath = files([cdmCoreSourceSet.compileClasspath, cdmCoreSourceSet.output])
+    include publicApiDef
+  }
+
+  task buildJavadocPublicApiWithDeps(type: Javadoc) {
+    group = 'documentation-set'
+    description = 'Generate Javadoc for the Public API - included deprecated classes and methods.'
+    title = "NetCDF-Java Public API v${version} - with deprecations"
+    destinationDir = file("${buildDir}/javadocWithDeps/")
+
+    SourceSet cdmCoreSourceSet = rootProject.project(':cdm-core').sourceSets.main
+    source cdmCoreSourceSet.allJava
+
+    classpath = files([cdmCoreSourceSet.compileClasspath, cdmCoreSourceSet.output])
+    include publicApiDef
+    include 'ucar/ma2/*.java'
+  }
+
+  task buildJavadocAll(type: Javadoc) {
+    group = 'documentation-set'
+    description = 'Generate Javadoc for all Java subprojects.'
+    title = "NetCDF-Java All API v${version}"
+    destinationDir = file("${buildDir}/javadocAll/")
+
+    source javaProjects.collect {
+      project -> project.sourceSets.main.allJava
+    }
+
+    classpath = files(javaProjects.collect {project ->
+      [project.sourceSets.main.compileClasspath, project.sourceSets.main.output]
+    })
+  }
+
+  javadoc.dependsOn buildJavadocPublicApi, buildJavadocPublicApiWithDeps, buildJavadocAll
+
+  tasks.withType(Javadoc).all {
+    options.encoding = 'UTF-8'
+    options.docEncoding = 'UTF-8'
+    options.charSet = 'UTF-8'
+    options.links('https://docs.oracle.com/en/java/javase/11/docs/api/')
+
+    if (JavaVersion.current().isJava8Compatible()) {
+      // doclint="all" (the default) will identify 100s of errors in our docs and cause no Javadoc to be generated.
+      // So, turn it off. See http://blog.joda.org/2014/02/turning-off-doclint-in-jdk-8-javadoc.html
+      options.addStringOption('Xdoclint:none', '-quiet')
+
+      // TODO: Actually use doclint and fix the errors it finds. Below are the options that the Gradle project uses.
+      // At the very least, try 'reference'.
+      // options.addStringOption 'Xdoclint:syntax,html,reference', '-quiet'
+    }
+  }
+}
+
+tasks.javadoc.description 'Build all javadoc docsets.'
+
+// Aggregates the individual "build*" aggregation tasks.
+tasks.build {
+  dependsOn tasks.named(buildAllJekyllSitesTaskName), javadoc
+}
+
+/////////////////////////////////////////////
+// Nexus Repository Publication Management //
+/////////////////////////////////////////////
+
+// versioned means published documentation url path will include explicit /major.minor/ versioning information
+// current means versioning information will be "meta" -  most of the time /current/, or if on the develop branch /dev/
+final def docVersionTypes = ['current', 'versioned']
+
+// create aggregation level publication/deletion tasks (versioned or current)
+// for all documentation
+docVersionTypes.forEach {docVersionType ->
+  tasks.register(getPublishAllTaskName('all', docVersionType)) {
+    group = 'Publishing'
+    description = "Publish all documentation (${docVersionType})."
+  }
+  tasks.register(getDeleteAllTaskName('all', docVersionType)) {
+    group = 'Publishing'
+    description = "Remove all ${docVersionType} docs on Nexus."
+  }
+}
+
+//
+// Publish Jekyll Docsets
+//
+// create aggregation level publication/deletion tasks (versioned or current)
+// for jekyll documentation
+docVersionTypes.forEach {docVersionType ->
+  tasks.register(getPublishAllTaskName('jekyll', docVersionType)) {
+    group = 'Publishing'
+    description = "Publish all ${docVersionType} Jekyll Sites to Nexus."
+  }
+
+  tasks.register(getDeleteAllTaskName('jekyll', docVersionType)) {
+    group = 'Publishing'
+    description = "Remove all ${docVersionType} Jekyll Sites from Nexus."
+  }
+}
+
+docVersionTypes.each {docVersionType ->
+  tasks.named(getPublishAllTaskName('jekyll', docVersionType)).configure({dependsOn tasks.named(buildAllJekyllSitesTaskName)})
+}
+
+docSetsInfo.each { docSet, docSetInfo ->
+  docVersionTypes.each { docType ->
+    def nexusTaskName = makeNexusTaskName(docType, docSet)
+    def versioned = docType != 'current'
+    def nexusPath = getNexusPath(docSetInfo, versioned)
+    // if this docset belongs to a project with multiple docsets, add docset name
+    // the the versioned nexsus path
+    if (docSetInfo.isDocSet) {
+      nexusPath = "${nexusPath}/${docSet}"
+    }
+    def descriptionPath = getPathForDescription(docSetInfo, versioned)
+    def nexusRawRepoName = getRawRepoName(docSetInfo)
+
+    def pubAsTask = tasks.register("publishAs${nexusTaskName}", PublishToRawRepoTask) {
+      description  "Publish ${docSet} to Nexus under ${descriptionPath}."
+      group 'Publishing-docset'
+      dependsOn tasks.named("build${ -> makeUpperCamelCase(docSet) }")
+      repoName = "${nexusRawRepoName}"
+      publishSrc = file("${buildDir}/site/${docSet}/")
+      destPath "${nexusPath}/"
+    }
+
+    def deleteTask = tasks.register("delete${nexusTaskName}", DeleteFromNexusTask) {
+      description "Remove $docSet on Nexus under ${descriptionPath}."
+      group 'Publishing-docset'
+      searchQueryParameters.repository = "${nexusRawRepoName}"
+      searchQueryParameters.name = "${nexusPath}/*"
+    }
+
+    // register tasks with the appropriate aggregator tasks
+    tasks.named(getPublishAllTaskName('jekyll', docType)).configure({dependsOn pubAsTask})
+    tasks.named(getDeleteAllTaskName('jekyll', docType)).configure({dependsOn deleteTask})
+  }
+}
+
+//
+// Publish Javadoc Docsets
+//
+// create aggregation level publication/deletion tasks (versioned or current)
+// for all javadoc documentation
+docVersionTypes.forEach {docVersionType ->
+   tasks.register(getPublishAllTaskName('javadoc', docVersionType)) {
+    group = 'Publishing'
+    description = "Publish all ${docVersionType} Javadoc sets to Nexus"
+  }
+
+  tasks.register(getDeleteAllTaskName('javadoc', docVersionType)) {
+    group = 'Publishing'
+    description = 'Remove all Javadoc sets on Nexus under /major.minor/.'
+  }
+}
+
+final def javadocSetsInfo = [
+  JavadocPublicApi: [
+    javadocsetName: 'javadoc',
+    description: 'Javadoc for the netCDF-Java Public API'
+  ],
+  JavadocPublicApiWithDeps: [
+    javadocsetName: 'javadoc-with-deprecations',
+    description: 'Javadoc for the netCDF-Java Public API (with deprecations)'
+  ],
+  JavadocAll: [
+    javadocsetName: 'javadocAll',
+    description: 'Javadoc for all netCDF-Java subprojects'
+  ]
+]
+
+gradle.projectsEvaluated {
+  // These tasks must be in a "projectsEvaluated" block because they depend on tasks that are also in a
+  // "projectsEvaluated" block.
+  docVersionTypes.each { docVersionType ->
+    def taskType = docVersionType.capitalize()
+    def versioned = docVersionType != 'current'
+    // since this is for javadoc publishing, just pick a docSetInfo object that is versioned
+    // following netCDF-java (so not ncml)
+    def docSetInfo = docSetsInfo.get('userguide')
+    def nexusPath = getNexusPath(docSetInfo, versioned)
+    def descriptionPath = getPathForDescription(docSetInfo, versioned)
+    def nexusRawRepoName = getRawRepoName(docSetInfo)
+
+    javadocSetsInfo.each { javadocSet, javadocSetInfo ->
+      def javadocPubTask = tasks.register("publishAs${taskType}${javadocSet}", PublishToRawRepoTask) {
+        description "Publish ${javadocSetInfo.description} to Nexus under ${descriptionPath}."
+        group 'Publishing-docset'
+        dependsOn tasks.named("build${javadocSet}")
+        repoName = "${nexusRawRepoName}"
+        publishSrc = tasks.findByPath("build${javadocSet}").destinationDir
+        destPath = "${nexusPath}/${javadocSetInfo.javadocsetName}/"
+      }
+
+      def deleteJavadocTask = tasks.register("delete${taskType}${javadocSet}FromNexus", DeleteFromNexusTask) {
+        description "Remove ${javadocSetInfo.description} from Nexus under ${descriptionPath}."
+        group 'publishing-docset'
+        searchQueryParameters.repository = "${nexusRawRepoName}"
+        searchQueryParameters.name = "${nexusPath}/${javadocSetInfo.javadocsetName}/*"
+      }
+
+      tasks.named(getPublishAllTaskName('javadoc', docVersionType)).configure({ dependsOn javadocPubTask })
+      tasks.named(getDeleteAllTaskName('javadoc', docVersionType)).configure({ dependsOn deleteJavadocTask })
+    }
+  }
+}
+
+// create aggregation level publication/deletion tasks (versioned or current)
+// for all documentation (jekyll sites and javadocs)
+docVersionTypes.forEach { docVersionType ->
+  tasks.named(getPublishAllTaskName('all', docVersionType)).configure {
+    dependsOn tasks.named(getPublishAllTaskName('jekyll', docVersionType)), tasks.named(getPublishAllTaskName('javadoc', docVersionType))
+  }
+  tasks.named(getDeleteAllTaskName('all', docVersionType)).configure {
+    dependsOn tasks.named(getDeleteAllTaskName('jekyll', docVersionType)), tasks.named(getDeleteAllTaskName('javadoc', docVersionType))
+  }
+}
+
+//
+// Common to all publish related tasks
+//
+gradle.projectsEvaluated {
+  for (taskType in [PublishToRawRepoTask, DeleteFromNexusTask]) {
+    tasks.withType(taskType).all {
+      host = 'https://artifacts.unidata.ucar.edu/'
+      if (taskType == DeleteFromNexusTask && project.hasProperty('dryRun')) {
+        dryRun = project.property('dryRun')
+      }
+      onlyIf {
+        // do not try to publish unless we know our current git branch
+        // will throw a FileNotFound error if we are not in a valid git repository
+        getBranchName(true)
+
+        // Will be evaluated at task execution time, not during configuration.
+        // Fails the build if the specified properties haven't been provided.
+        username = project.properties["nexus.username"].toString()
+        password = project.properties["nexus.password"].toString()
+        return true
+      }
+    }
+  }
+}

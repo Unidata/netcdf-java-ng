@@ -1,0 +1,54 @@
+/*
+ * Copyright (c) 1998-2021 John Caron and University Corporation for Atmospheric Research/Unidata
+ * See LICENSE for license information.
+ */
+package thredds.inventory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * A decorator to filter an MCollection
+ *
+ * @author caron
+ * @since 3/12/2015
+ */
+public class CollectionFiltered extends CollectionAbstract {
+  private final MCollection org;
+  private final MFileFilter filter;
+
+  public CollectionFiltered(String name, MCollection org, MFileFilter filter) {
+    super(name, null);
+    this.org = org;
+    this.filter = filter;
+    setRoot(org.getRoot());
+  }
+
+  @Override
+  public void close() {
+    org.close();
+  }
+
+  @Override
+  public Iterable<MFile> getFilesSorted() throws IOException {
+    List<MFile> list = new ArrayList<>(100);
+    try (CloseableIterator<MFile> iter = getFileIterator()) {
+      while (iter.hasNext()) {
+        list.add(iter.next());
+      }
+    }
+    if (hasDateExtractor()) {
+      list.sort(new DateSorter()); // sort by date
+    } else {
+      Collections.sort(list); // sort by name
+    }
+    return list;
+  }
+
+  @Override
+  public CloseableIterator<MFile> getFileIterator() throws IOException {
+    return new MFileIterator(org.getFileIterator(), filter);
+  }
+}

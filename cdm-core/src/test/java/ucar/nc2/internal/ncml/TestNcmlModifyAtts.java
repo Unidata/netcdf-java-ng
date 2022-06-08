@@ -1,0 +1,248 @@
+/*
+ * Copyright (c) 1998-2021 John Caron and University Corporation for Atmospheric Research/Unidata
+ * See LICENSE for license information.
+ */
+package ucar.nc2.internal.ncml;
+
+import java.io.IOException;
+import java.util.Iterator;
+
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import ucar.array.ArrayType;
+import ucar.array.Array;
+import ucar.array.Arrays;
+import ucar.array.Section;
+import ucar.nc2.Attribute;
+import ucar.nc2.Dimension;
+import ucar.nc2.NetcdfFile;
+import ucar.nc2.Variable;
+import ucar.nc2.constants.CDM;
+import ucar.nc2.util.Misc;
+
+import static com.google.common.truth.Truth.assertThat;
+
+public class TestNcmlModifyAtts {
+  private static NetcdfFile ncfile = null;
+
+  @BeforeClass
+  public static void setUp() throws IOException {
+    String filename = "file:" + TestNcmlRead.topDir + "modifyAtts.xml";
+    ncfile = NcmlReader.readNcml(filename, null, null).build();
+  }
+
+  @AfterClass
+  public static void tearDown() throws IOException {
+    ncfile.close();
+  }
+
+  @Test
+  public void testGlobalAtt() {
+    Attribute att = ncfile.findAttribute("Conventions");
+    assert null != att;
+    assert !att.isArray();
+    assert att.isString();
+    assert att.getArrayType() == ArrayType.STRING;
+    assert att.getStringValue().equals("Metapps");
+    assert att.getNumericValue() == null;
+    assert att.getNumericValue(3) == null;
+  }
+
+  @Test
+  public void testVarAtt() {
+    Variable v = ncfile.findVariable("rh");
+    assert null != v;
+
+    Attribute att = v.findAttribute(CDM.LONG_NAME);
+    assertThat(att).isNull();
+
+    assertThat(v.findAttribute("units")).isNull();
+    assertThat(v.attributes().findAttributeIgnoreCase("units")).isNotNull();
+    att = v.findAttribute("UNITS");
+    assertThat(att).isNotNull();
+    assertThat(att.getStringValue()).isEqualTo("percent");
+
+    att = v.findAttribute("longer_name");
+    assertThat(att).isNotNull();
+    assert !att.isArray();
+    assert att.isString();
+    assert att.getArrayType() == ArrayType.STRING;
+    assert att.getStringValue().equals("Abe said what?");
+  }
+
+  @Test
+  public void testStructure() {
+    Attribute att = ncfile.findAttribute("title");
+    assert null == att;
+
+    Dimension latDim = ncfile.findDimension("lat");
+    assert null != latDim;
+    assert latDim.getShortName().equals("lat");
+    assert latDim.getLength() == 3;
+    assert !latDim.isUnlimited();
+
+    Dimension timeDim = ncfile.findDimension("time");
+    assert null != timeDim;
+    assert timeDim.getShortName().equals("time");
+    assert timeDim.getLength() == 2;
+    assert timeDim.isUnlimited();
+  }
+
+  @Test
+  public void testReadCoordvar() throws IOException {
+    Variable lat = ncfile.findVariable("lat");
+    assert null != lat;
+    assert lat.getShortName().equals("lat");
+    assert lat.getRank() == 1;
+    assert lat.getSize() == 3;
+    assert lat.getShape()[0] == 3;
+    assert lat.getArrayType() == ArrayType.FLOAT;
+
+    assert !lat.isUnlimited();
+
+    assert lat.getDimension(0) == ncfile.findDimension("lat");
+
+    Attribute att = lat.findAttribute("units");
+    assert null != att;
+    assert !att.isArray();
+    assert att.isString();
+    assert att.getArrayType() == ArrayType.STRING;
+    assert att.getStringValue().equals("degrees_north");
+    assert att.getNumericValue() == null;
+    assert att.getNumericValue(3) == null;
+
+    Array<Float> data = (Array<Float>) lat.readArray();
+    assert data.getRank() == 1;
+    assert data.getSize() == 3;
+    assert data.getShape()[0] == 3;
+    Iterator<Float> dataI = data.iterator();
+
+    assertThat(Misc.nearlyEquals(dataI.next(), 41.0)).isTrue();
+    assertThat(Misc.nearlyEquals(dataI.next(), 40.0)).isTrue();
+    assertThat(Misc.nearlyEquals(dataI.next(), 39.0)).isTrue();
+  }
+
+  @Test
+  public void testReadData() throws IOException {
+    Variable v = ncfile.findVariable("rh");
+    assert null != v;
+    assert v.getShortName().equals("rh");
+    assert v.getRank() == 3;
+    assert v.getSize() == 24;
+    assert v.getShape()[0] == 2;
+    assert v.getShape()[1] == 3;
+    assert v.getShape()[2] == 4;
+    assert v.getArrayType() == ArrayType.INT;
+
+    assert !v.isCoordinateVariable();
+    assert v.isUnlimited();
+
+    assert v.getDimension(0) == ncfile.findDimension("time");
+    assert v.getDimension(1) == ncfile.findDimension("lat");
+    assert v.getDimension(2) == ncfile.findDimension("lon");
+
+    Array<Integer> data = (Array<Integer>) v.readArray();
+    assert data.getRank() == 3;
+    assert data.getSize() == 24;
+    assert data.getShape()[0] == 2;
+    assert data.getShape()[1] == 3;
+    assert data.getShape()[2] == 4;
+    Iterator<Integer> dataI = data.iterator();
+
+    assert dataI.next() == 1;
+    assert dataI.next() == 2;
+    assert dataI.next() == 3;
+    assert dataI.next() == 4;
+    assert dataI.next() == 5;
+  }
+
+  @Test
+  public void testReadSlice() throws Exception {
+    Variable v = ncfile.findVariable("rh");
+    int[] origin = new int[3];
+    int[] shape = {2, 3, 1};
+
+    Array<Integer> data = (Array<Integer>) v.readArray(new Section(origin, shape));
+    assert data.getRank() == 3;
+    assert data.getSize() == 6;
+    assert data.getShape()[0] == 2;
+    assert data.getShape()[1] == 3;
+    assert data.getShape()[2] == 1;
+    Iterator<Integer> dataI = data.iterator();
+
+    assert dataI.next() == 1;
+    assert dataI.next() == 5;
+    assert dataI.next() == 9;
+    assert dataI.next() == 21;
+    assert dataI.next() == 25;
+    assert dataI.next() == 29;
+  }
+
+  @Test
+  public void testReadSlice2() throws Exception {
+    Variable v = ncfile.findVariable("rh");
+    int[] origin = new int[3];
+    int[] shape = {2, 1, 3};
+
+    Array<Integer> data = (Array<Integer>) Arrays.reduce(v.readArray(new Section(origin, shape)));
+    assert data.getRank() == 2;
+    assert data.getSize() == 6;
+    assert data.getShape()[0] == 2;
+    assert data.getShape()[1] == 3;
+    Iterator<Integer> dataI = data.iterator();
+
+    assert dataI.next() == 1;
+    assert dataI.next() == 2;
+    assert dataI.next() == 3;
+    assert dataI.next() == 21;
+    assert dataI.next() == 22;
+    assert dataI.next() == 23;
+  }
+
+  @Test
+  public void testReadData2() throws IOException {
+    Variable v = ncfile.findVariable("Temperature");
+    assert null == v;
+
+    v = ncfile.findVariable("T");
+    assert null != v;
+    assert v.getShortName().equals("T");
+    assert v.getRank() == 3;
+    assert v.getSize() == 24;
+    assert v.getShape()[0] == 2;
+    assert v.getShape()[1] == 3;
+    assert v.getShape()[2] == 4;
+    assert v.getArrayType() == ArrayType.DOUBLE;
+
+    assert !v.isCoordinateVariable();
+    assert v.isUnlimited();
+
+    assert v.getDimension(0) == ncfile.findDimension("time");
+    assert v.getDimension(1) == ncfile.findDimension("lat");
+    assert v.getDimension(2) == ncfile.findDimension("lon");
+
+    Attribute att = v.findAttribute("units");
+    assert null != att;
+    assert !att.isArray();
+    assert att.isString();
+    assert att.getArrayType() == ArrayType.STRING;
+    assert att.getStringValue().equals("degC");
+    assert att.getNumericValue() == null;
+    assert att.getNumericValue(3) == null;
+
+    Array data = v.readArray();
+    assert data.getRank() == 3;
+    assert data.getSize() == 24;
+    assert data.getShape()[0] == 2;
+    assert data.getShape()[1] == 3;
+    assert data.getShape()[2] == 4;
+    Iterator<Double> dataI = data.iterator();
+
+    assertThat(Misc.nearlyEquals(dataI.next(), 1.0)).isTrue();
+    assertThat(Misc.nearlyEquals(dataI.next(), 2.0)).isTrue();
+    assertThat(Misc.nearlyEquals(dataI.next(), 3.0)).isTrue();
+    assertThat(Misc.nearlyEquals(dataI.next(), 4.0)).isTrue();
+    assertThat(Misc.nearlyEquals(dataI.next(), 2.0)).isTrue();
+  }
+}

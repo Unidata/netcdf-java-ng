@@ -1,0 +1,2 @@
+thredds.client.catalog.tools.CatalogNetcdfFileProvider
+ucar.nc2.internal.ncml.NcmlNetcdfFileProvider

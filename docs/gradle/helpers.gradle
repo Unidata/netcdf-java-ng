@@ -1,0 +1,107 @@
+import java.nio.file.Paths
+
+// Helper methods
+// These are useful methods for managing the programmatic creation of tasks related to the building
+// and publication/deletion of documentation sets.
+
+//////////////////////
+// EXPORTED METHODS //
+//////////////////////
+
+// make string upper camel case
+// examples: cdm -> Cdm, userguide -> UserGuide
+static def makeUpperCamelCase(docSet) {
+  def taskName = docSet.capitalize()
+  taskName = taskName.replace('guide', 'Guide')
+  taskName
+}
+
+// create a task name starting with the version type (e.g. VersionedCdm)
+static def makeNexusTaskName(docType, docSet) {
+  def taskName = makeUpperCamelCase(docSet)
+  taskName = docType.capitalize() + taskName
+  return taskName
+}
+
+// extract the raw repository name from an entry in docSetsInfo
+static def getRawRepoName(Map<String, String> docSetInfo) {
+  docSetInfo.get('rawRepoName')
+}
+
+// extract the version part of the path under which the documentation is stored on nexus from an entry in docSetsInfo
+def getPathForDescription(docSetInfo, versioned = true) {
+  def nexusPath = getNexusPath(docSetInfo, versioned)
+  "/${nexusPath.split('/').last()}/"
+}
+
+// used to create aggregation level publication task names (e.g. publishAllJekyllSitesAsCurrent)
+def getPublishAllTaskName(String docsetFlavor, String versionType) {
+  def taskFlavor = getTaskFlavor(docsetFlavor)
+  "publishAll${taskFlavor}As${versionType.capitalize()}"
+}
+
+// used to create aggregation level deletion task names (e.g. deleteAllJekyllSitesFromNexus)
+def getDeleteAllTaskName(String docsetFlavor, String versionType) {
+  def taskFlavor = getTaskFlavor(docsetFlavor)
+  "deleteAll${taskFlavor}${versionType.capitalize()}FromNexus"
+}
+
+// extract the path from docSetsInfo under which a docset should be published on nexus
+def getNexusPath(docSetInfo, versioned = true) {
+  def topLevelRawRepoDir = getRawRepoName(docSetInfo)
+  topLevelRawRepoDir = topLevelRawRepoDir.replace('docs-', '')
+  def branchName = getBranchName()
+  def persistentNameNexus = 'current'
+  // if netcdf-java docset, publish docs on develop branch under 'dev' instead of 'current'.
+  // ncml and cdm do not have a 'dev' concept at the moment
+  if (topLevelRawRepoDir == 'netcdf-java') {
+    persistentNameNexus = branchName != 'develop' ? 'dev' : 'current'
+  }
+  def nexusVersion = versioned ? "${docSetInfo.version}" : "${persistentNameNexus}"
+  topLevelRawRepoDir == 'ncml' ? "${topLevelRawRepoDir}/${nexusVersion}" : "${nexusVersion}"
+}
+
+def getBranchName(mustExist=false) {
+  def branchName = ''
+  // If this is a git repo, grab the branch name to tag the sonarcloud analysis
+  def headFile = Paths.get("$rootDir", ".git", "HEAD").toFile()
+  if (headFile.exists()) {
+    String head = headFile.getText('UTF-8')
+    branchName = head.split('refs/heads/').last()
+  } else if (mustExist) {
+    throw new FileNotFoundException("The task calling this function requires that it be ran from a git repository. Cannot find ${headFile}.")
+  }
+  return branchName
+}
+
+//////////////////////////
+// NOT EXPORTED METHODS //
+//////////////////////////
+
+// used in the creation of aggregation level task names (e.g. publishAll<JekyllSites>AsCurrent)
+static def getTaskFlavor(String docsetFlavor) {
+  def taskFlavor = ''
+  if (docsetFlavor == 'javadoc') {
+    taskFlavor = "Javadocs"
+  } else if (docsetFlavor == 'jekyll') {
+    taskFlavor = "JekyllSites"
+  }  else if (docsetFlavor == 'all') {
+    taskFlavor = "Docs"
+  }
+  taskFlavor
+}
+
+// So it isn't possible to share methods, but we can share extra properties containing a closure, which boils down to
+// the same thing. We're going to do that by converting the methods needed by the main docs build.gradle to closures.
+// See https://stackoverflow.com/questions/18715137/extract-common-methods-from-gradle-build-script
+
+ext {
+  makeUpperCamelCase = this.&makeUpperCamelCase
+  getPublishAllTaskName = this.&getPublishAllTaskName
+  getDeleteAllTaskName = this.&getDeleteAllTaskName
+  makeNexusTaskName = this.&makeNexusTaskName
+  getNexusPath = this.&getNexusPath
+  getPathForDescription = this.&getPathForDescription
+  getRawRepoName = this.&getRawRepoName
+  getBranchName = this.&getBranchName
+}
