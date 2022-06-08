@@ -1,4 +1,4 @@
-# netCDF-Java 6.x
+# NetCDF-Java 6.x
 
 Welcome to the `6.x` line of development of the netCDF-Java library!
 
