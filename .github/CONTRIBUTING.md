@@ -2,14 +2,11 @@
 
 # Welcome contributors!
 
-First off, thank you for your interest in contributing to the THREDDS project!
-This repository contains the code for netCDF-Java.
-The other projects held under the THREDDS umbrella are:
-  * [THREDDS Data Server](https://github.com/unidata/tds) (TDS)
-  * [Rosetta](https://github.com/unidata/rosetta)
-  * [Siphon](https://github.com/unidata/siphon) (a python data access library, which includes an interface to the TDS).
+First off, thank you for your interest in contributing to netCDF-Java!
 
-Please review the [UCAR code of conduct](https://github.com/Unidata/.github/blob/develop/CODE_OF_CONDUCT.md) before submitting a pull request.
+This repository contains the code for Next Generation netCDF-Java (> v5).
+
+Please review the [Unidata/UCAR code of conduct](https://github.com/Unidata/.github/blob/main/CODE_OF_CONDUCT.md) before submitting a pull request.
 Once your have submitted a pull requests, you will be asked to digitally sign the Unidata Contributor License Agreement.
 For more information about the CLA, please visit https://www.unidata.ucar.edu/blogs/developer/entry/contributor-license-agreement-for-unidata.
 
@@ -35,18 +32,18 @@ For more information about the CLA, please visit https://www.unidata.ucar.edu/bl
 To get started contributing to a THREDDS project, the first thing you should do is [sign up for a free account on GitHub](https://github.com/join).
 
 ### <a name="gh-fork"></a>Fork the Unidata netcdf-java project
-Once you have an account, go ahead and [fork](https://github.com/unidata/netcdf-java#fork-destination-box) the netCDF-java project.
-By forking the project, you will have a complete copy of the netCDF-java project, history and all, under your personal account.
-This will allow you to make pull requests against the Unidata netCDF-java repository, which is the primary mechanism used to add new code to the project (even Unidata developers do this!).
+Once you have an account, go ahead and [fork](https://github.com/unidata/netcdf-java#fork-destination-box) this project.
+By forking the project, you will have a complete copy of the Next Generation netCDF-java project, history and all, under your personal account.
+This will allow you to make pull requests against the Unidata Next Generation netCDF-java repository, which is the primary mechanism used to add new code to the project (even Unidata developers do this!).
 
 ### <a name="gh-pull-ud-ncj"></a>Pull down local copy of the Unidata netCDF-java project
 After cloning the Unidata repository, you can pull down the source code to your local machine by using git:
 
-`git clone --origin unidata git@github.com:Unidata/netcdf-java.git` (for ssh)
+`git clone --origin unidata git@github.com:Unidata/netcdf-java-ng.git` (for ssh)
 
 or
 
-`git clone --origin unidata https://github.com/Unidata/netcdf-java.git` (for http)
+`git clone --origin unidata https://github.com/Unidata/netcdf-java-ng.git` (for http)
 
 Note that these commands reference the Unidata repository.
 
@@ -55,24 +52,25 @@ To help with any confusion when making pull requests, this commands above rename
 
 ### <a name="gh-join"></a>Add and pull down a local copy of your netCDF-java project fork
 
-Next, move into the source directory git has created, and add your personal fork of the netCDF-java code as a remote"
+Next, move into the source directory git has created, and add your personal fork of the Next Generation netCDF-java code as a remote:
 
-`git clone --origin me git@github.com:<my-github-user-name>/netcdf-java.git` (for ssh)
+`git clone --origin me git@github.com:<my-github-user-name>/netcdf-java-ng.git` (for ssh)
 
 or
 
-`git clone --origin me https://github.com/,my-github-user-name>/netcdf-java.git` (for https)
+`git clone --origin me https://github.com/,my-github-user-name>/netcdf-java-ng.git` (for https)
 
 Now you are all set!
 
 ## <a name="#gh-contrib-workflow"></a>Contribution workflow
 
-### <a name="#gh-sync-ud"></a> Make sure you have the latest changes from Unidata netCDF-java repository
-First, make sure you have the most recent changes to the netCDF-java code by using git pull:
+### <a name="#gh-sync-ud"></a> Make sure you have the latest changes from Unidata Next Generation netCDF-java repository
+First, make sure you have the most recent changes to the Next Generation netCDF-java code by using `git pull`:
 
 `git pull unidata develop`
 
-All work on netcdf-java is should branch from the `develop` branch.
+All work on netcdf-java is should branch from the `main` branch.
+
 Contributions will be backported to other versions as needed.
 
 ### <a name="#gh-branch"></a>Make a new branch for your work and start hacking
@@ -245,7 +243,7 @@ Once you have and exit, you will have a change to change the commit message for 
 
 ~~~bash
 
-Really cool feature or bug fix. Addresses the github issue Unidata/netcdf-java#1
+Really cool feature or bug fix. Addresses the github issue Unidata/netcdf-java-ng#1
 
 #Please enter the commit message for your changes. Lines starting
 # with '#' will be ignored, and an empty message aborts the commit.
@@ -270,11 +268,11 @@ commit 805b4723c4a2cbbed240354332cd7af57559a1b9
 Author: Sean Arms <67096+lesserwhirls@users.noreply.github.com>
 Date:   Thu Oct 15 09:59:23 2015 -0600
 
-    Really cool feature or bug fix. Addresses the github issue Unidata/netcdf-java#1
+    Really cool feature or bug fix. Addresses the github issue Unidata/netcdf-java-ng#1
 
 ~~~
 
-Note that the commit contains the text `Unidata/netcdf-java#1`.
+Note that the commit contains the text `Unidata/netcdf-java-ng#1`.
 This is a cool github trick that will allow you to reference GitHub issues within your commit messages.
 When viewed on github.com, this will be turned into a hyperlink to the issue.
 While not every contribution will address an issue, please use this feature if your contribution does!
@@ -289,14 +287,14 @@ However, the rebase has changed the history of your local branch, which means yo
 Finally, go to your personal remote repository on github.com and switch to your `mywork` branch.
 Once you are on your work branch, you will see a button that says "Pull request", which will allow you to make a pull request.
 
-The github pull request page will allow you to select which repository and branch you would like to submit the pull request to (the `base fork`, which should be `Unidata/netcdf-java`, and `base`, which should be `develop`), as well as the `head fork` and `compare` (which should be `<github-user-name/netcdf-java>` and `mywork`, respectively).
+The github pull request page will allow you to select which repository and branch you would like to submit the pull request to (the `base fork`, which should be `Unidata/netcdf-java-ng`, and `base`, which should be `main`), as well as the `head fork` and `compare` (which should be `<github-user-name/netcdf-java-ng>` and `mywork`, respectively).
 Once this is setup, you can make the pull request.
 
 ## <a name="#gh-now-what"></a>Now what?
 
-The Unidata netCDF-java project uses GitHub Actions for automated testing for all pull requests.
+The Unidata Next Generation netCDF-java project uses GitHub Actions for automated testing for all pull requests.
 The status of the tests can be seen on the pull request page.
-For example, visit [Unidata/netcdf-java#355](https://github.com/Unidata/netcdf-java/pull/355) and select the [Checks](https://github.com/Unidata/netcdf-java/pull/355/checks) tab along the top.
+For example, visit [Unidata/netcdf-java#355](https://github.com/Unidata/netcdf-java/pull/355) and select the [Checks](https://github.com/Unidata/netcdf-java/pull/355/checks).
 GitHub Actions check the following:
 * build and test netCDF-Java using AdoptOpenJDK 8, Zulu JDK 8 (*required*)
 * build the documentation, if any documentation changes were made in the PR. (*required*)
@@ -304,11 +302,11 @@ GitHub Actions check the following:
 * build and testing the THREDDS Data Server against the PR
 
 Pull requests whose changes cause one or more of the first three checks to fail are generally not merged.
-One of the Unidata netCDF-java team members will work with you to make sure your work is ready for merging once the tests have passed.
+One of the Unidata Next Generation netCDF-java team members will work with you to make sure your work is ready for merging once the tests have passed.
 Any changes to your pull request will trigger the GitHub Actions to re-run.
 
 If your pull request addresses a bug, we kindly ask that you include a test in your pull request.
-Learn more about testing within netCDF-Java on our [wiki](https://github.com/Unidata/netcdf-java/wiki/Testing)
+Learn more about testing within netCDF-Java on our [wiki](https://github.com/Unidata/netcdf-java-ng/wiki/Testing)
 If you have test data that are larger than a few hundred kB, please let us know.
 If you cannot reduce the size of the test file, we can add it to our [integration test datasets](https://github.com/unidata/thredds-test-data), as long as we have permission to redistribute the file.
 If you do not know how to write tests in Java, we will be more than happy to work with you!
